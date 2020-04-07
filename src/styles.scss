@@ -1,0 +1,32 @@
+$primary-color: white;
+$bg: black;
+h1 {
+    color: $primary-color;
+    background-color: $bg;
+}
+
+#hsv_canvas {
+    width: 500px;
+    height: 500px;
+}
+
+#hue_slider {
+    position: relative;
+    width: 500px;
+    height: 10px;
+    background: linear-gradient(to right,hsl(0,100%,50%),hsl(60,100%,50%),hsl(120,100%,50%),hsl(180,100%,50%),hsl(240,100%,50%),hsl(300,100%,50%),hsl(360,100%,50%));
+
+    #hue_pos {
+        position: absolute;
+        left: 0px;
+        top: 0px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background-color: hsl(0, 100%, 50%);
+        transform: translate(-50%, -4px);
+        border: 2px solid white;
+        //pointer-events: none;
+        cursor: pointer;
+    }
+}
