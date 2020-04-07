@@ -6,7 +6,7 @@ const context = canvas.getContext('2d')!;
 const hueSlider = document.getElementById('hue_slider') as HTMLDivElement;
 const huePos = document.getElementById('hue_pos') as HTMLDivElement;
 
-let hue = 132;
+let hue = 0;
 
 function drawCanvas(hue: number) {
     for (let i = 0; i < 101; i++) {
@@ -18,7 +18,7 @@ function drawCanvas(hue: number) {
     }
 }
 
-drawCanvas(0);
+drawCanvas(hue);
 
 canvas.addEventListener('mousedown', (e) => {
     const onMouseMove = (e: MouseEvent) => {
