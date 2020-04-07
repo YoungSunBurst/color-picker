@@ -27,3 +27,21 @@ export function HSVtoRGB(h: number, s: number, v: number) {
     }
     return `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`
 }
+
+
+export interface IPosition {
+    clientX: number;
+    clientY: number;
+    offsetX: number;
+    offsetY: number;
+}
+
+export function makePosition(target: HTMLElement, e: MouseEvent | TouchEvent): IPosition {
+    let r = target.getBoundingClientRect();
+    return {
+        clientX: 'clientX' in e ? e.clientX : e.touches[0].clientX,
+        clientY: 'clientY' in e ? e.clientY : e.touches[0].clientY,
+        offsetX: 'offsetX' in e ? e.offsetX : e.touches[0].pageX - r.left,
+        offsetY: 'offsetY' in e ? e.offsetY : e.touches[0].pageY - r.top,
+    }
+}

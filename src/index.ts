@@ -1,10 +1,12 @@
 import './styles.scss';
-import {HSVtoRGB} from './Utils';
+import {HSVtoRGB, makePosition} from './Utils';
 
 const canvas = document.getElementById('hsv_canvas') as HTMLCanvasElement;
 const context = canvas.getContext('2d')!;
 const hueSlider = document.getElementById('hue_slider') as HTMLDivElement;
 const huePos = document.getElementById('hue_pos') as HTMLDivElement;
+
+var isTouchDevice = 'ontouchstart' in document.documentElement;
 
 let hue = 0;
 
@@ -38,24 +40,28 @@ const onHueChange = (hue: number) => {
     drawCanvas(Math.round(hue));
 };
 
-huePos.addEventListener('mousedown', (e: MouseEvent) => {
-    const initX = e.clientX;
+
+huePos.addEventListener(isTouchDevice ? 'touchstart' : 'mousedown', (e: MouseEvent | TouchEvent) => {
+    const pos = makePosition(huePos, e);
+    const initX = pos.clientX;
     const initHue = hue;
-    onChangeHuePos(initHue, initX);
+    onChangeHuePos(huePos, initHue, initX);
     e.stopPropagation();
 });
 
-hueSlider.addEventListener('mousedown', (e: MouseEvent) => {
-    const initX = e.clientX;
-    hue = e.offsetX / 500 * 360;
+hueSlider.addEventListener(isTouchDevice ? 'touchstart' : 'mousedown', (e: MouseEvent | TouchEvent) => {
+    const pos = makePosition(hueSlider, e);
+    const initX = pos.clientX;
+    hue = pos.offsetX / 500 * 360;
     onHueChange(hue);
     const initHue = hue;
-    onChangeHuePos(initHue, initX);
+    onChangeHuePos(hueSlider, initHue, initX);
 });
 
-const onChangeHuePos = (initHue: number, initX: number) => {
-    const onMouseMove = (e: MouseEvent) => {
-        const delta = (e.clientX - initX) / 500 * 360;
+const onChangeHuePos = (target: HTMLElement, initHue: number, initX: number) => {
+    const onMouseMove = (e: MouseEvent | TouchEvent) => {
+        const pos = makePosition(target, e);
+        const delta = (pos.clientX - initX) / 500 * 360;
         hue = initHue + delta;
         if (hue < 0) {
             hue = 0;
@@ -64,11 +70,11 @@ const onChangeHuePos = (initHue: number, initX: number) => {
         }
         onHueChange(hue);
     };
-    const onMouseUp = (e: MouseEvent) => {
-        document.removeEventListener('mouseup', onMouseUp);
-        document.removeEventListener('mousemove', onMouseMove);
+    const onMouseUp = (e: MouseEvent | TouchEvent) => {
+        document.removeEventListener(isTouchDevice ? 'touchend' : 'mouseup', onMouseUp);
+        document.removeEventListener(isTouchDevice ? 'touchmove' : 'mousemove', onMouseMove);
     };
-    document.addEventListener('mouseup', onMouseUp);
-    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener(isTouchDevice ? 'touchend' : 'mouseup', onMouseUp);
+    document.addEventListener(isTouchDevice ? 'touchmove' : 'mousemove', onMouseMove);
 };
 
