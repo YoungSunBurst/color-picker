@@ -45,3 +45,11 @@ export function makePosition(target: HTMLElement, e: MouseEvent | TouchEvent): I
         offsetY: 'offsetY' in e ? e.offsetY : e.touches[0].pageY - r.top,
     }
 }
+
+const isTouchDevice = 'ontouchstart' in document.documentElement;
+
+export type MOUSEEVENT = MouseEvent | TouchEvent;
+export const MOUSEDOWN = isTouchDevice ? 'touchstart' : 'mousedown';
+export const MOUSEMOVE = isTouchDevice ? 'touchmove' : 'mousemove';
+export const MOUSEUP = isTouchDevice ? 'touchend' : 'mouseup';
+

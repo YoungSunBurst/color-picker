@@ -1,13 +1,19 @@
 import './styles.scss';
-import {HSVtoRGB} from './Utils';
+import {createColorPicker} from '../src/ColorPicker';
+
+
+const appEl = document.getElementById('app')!;
+const picker = createColorPicker({paletteWidth: 500, paletteHeight: 500, knobRadius: 10, gap: 100, sliderHeight: 50});
+picker.attach(appEl);
+
 
 // const canvas = document.getElementById('hsv_canvas') as HTMLCanvasElement;
 // const context = canvas.getContext('2d')!;
 // const hueSlider = document.getElementById('hue_slider') as HTMLDivElement;
 // const huePos = document.getElementById('hue_pos') as HTMLDivElement;
 // const bufferCanvas = document.createElement('canvas');
-// bufferCanvas.width = 1000;
-// bufferCanvas.height = 1000;
+// bufferCanvas.palleteWidth = 1000;
+// bufferCanvas.palleteHeight = 1000;
 // const bufferContext = bufferCanvas.getContext('2d')!;
 
 

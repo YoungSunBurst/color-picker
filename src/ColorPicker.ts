@@ -146,7 +146,7 @@ class ColorPickerImpl implements ColorPicker {
         this.context2d.arc(this._valueToPosX(s), this._valueToPosY(100 - v), this.knobRadius, 0, 2 * Math.PI);
         this.context2d.fillStyle = HSVtoRGB(this._hue / 360, s/100, v/100);
         this.context2d.strokeStyle = '#FFFFFF';
-        this.context2d.lineWidth = this.knobRadius * 0.2;
+        this.context2d.lineWidth = Math.max(this.knobRadius * 0.2, 5);
         this.context2d.stroke();
         this.context2d.fill();
     }
