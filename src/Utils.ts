@@ -25,7 +25,11 @@ export function HSVtoRGB(h: number, s: number, v: number) {
             r = v, g = p, b = q;
             break;
     }
-    return `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`
+    return {r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255)};
+}
+
+export function formatRGBtoCSS(v: {r: number, g: number, b: number}) {
+    return `rgb(${Math.round(v.r)}, ${Math.round(v.g)}, ${Math.round(v.b)})`;
 }
 
 

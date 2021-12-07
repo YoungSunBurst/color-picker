@@ -1,11 +1,23 @@
-import {HSVtoRGB, makePosition, MOUSEDOWN, MOUSEEVENT, MOUSEMOVE, MOUSEUP} from './Utils';
+import {formatRGBtoCSS, HSVtoRGB, makePosition, MOUSEDOWN, MOUSEEVENT, MOUSEMOVE, MOUSEUP} from './Utils';
+
+export interface RGB {
+    r: number;
+    g: number;
+    b: number;
+}
+
+type callbackFn = (rgb: RGB) => void;
 
 export interface ColorPicker {
     attach(parentEl: HTMLElement): void;
+
     detach(): void;
-    changeColor(rgb: number[]): void;
+
+    changeColor(r: number, g: number, b: number, silence?: boolean): void;
+
     getRGB(): number[];
-    onColorChanged(callback: (rgb: number[]) => void): void;
+
+    onColorChanged(callback: callbackFn): void;
 }
 
 export interface ColorPickerStyle {
@@ -22,15 +34,18 @@ class ColorPickerImpl implements ColorPicker {
     private readonly knobRadius: number;
     private readonly quality: number;
 
+    private readonly element: HTMLDivElement;
     private readonly canvas: HTMLCanvasElement;
     private readonly paletteCanvas: HTMLCanvasElement;
     private readonly context2d: CanvasRenderingContext2D;
     private readonly paletteContext2d: CanvasRenderingContext2D;
+    private readonly sliderEl!: HTMLDivElement;
+    private readonly sliderKnobEl!: HTMLDivElement;
+    private observers: callbackFn[] = [];
 
     private _hue: number = 0;
     private _saturation: number = 0;
     private _value: number = 100;
-    private readonly element: HTMLDivElement;
 
     constructor(style: ColorPickerStyle, quality = devicePixelRatio) {
         this.paletteWidth = style.paletteWidth;
@@ -39,28 +54,53 @@ class ColorPickerImpl implements ColorPicker {
         this.quality = quality;
 
         this.element = document.createElement('div');
-        this.canvas = document.createElement('canvas');
-        const context2d = this.canvas.getContext('2d');
-        if (context2d === null) {
-            throw Error('Failed to context initialized');
-        }
+        ({
+            canvas: this.canvas,
+            context2d: this.context2d,
+            paletteCanvas: this.paletteCanvas,
+            paletteContext2d: this.paletteContext2d,
+        } = this.initCanvas(style));
         this.element.append(this.canvas);
-        this.context2d = context2d;
-        this.paletteCanvas = document.createElement('canvas');
-        const paletteContext2d = this.paletteCanvas.getContext('2d')!;
-        if (paletteContext2d === null) {
-            throw Error('Failed to context initialized');
-        }
-        this.paletteContext2d = paletteContext2d;
-        this.initCanvas();
+        this.updatePalette();
+        ({sliderEl: this.sliderEl, sliderKnobEl: this.sliderKnobEl} = this.initSlider(style));
+        this.element.append(this.sliderEl);
+        this.handleMouseDownOnCanvas = this.handleMouseDownOnCanvas.bind(this);
+        this.handleMouseDownOnSlider = this.handleMouseDownOnSlider.bind(this);
+        this.handleMouseDownOnSliderKnob = this.handleMouseDownOnSliderKnob.bind(this);
     }
 
     public attach(parentEl: HTMLElement): void {
         parentEl.append(this.element);
-        this.canvas.addEventListener(MOUSEDOWN, this.handleMouseOnCanvas.bind(this));
+        this.canvas.addEventListener(MOUSEDOWN, this.handleMouseDownOnCanvas);
+        this.sliderEl.addEventListener(MOUSEDOWN, this.handleMouseDownOnSlider);
+        this.sliderKnobEl.addEventListener(MOUSEDOWN, this.handleMouseDownOnSliderKnob);
     }
 
-    private handleMouseOnCanvas(e: MOUSEEVENT) {
+    public detach(): void {
+        this.canvas.removeEventListener(MOUSEDOWN, this.handleMouseDownOnCanvas);
+        if (!this.element.parentElement) {
+            console.error('ColorPicker is not attached yet.');
+            return;
+        }
+        this.element.parentElement.removeChild(this.element);
+    }
+
+    public changeColor(r: number, g: number, b: number, silence: boolean = true): void {
+    }
+
+    public getRGB(): number[] {
+        return [];
+    }
+
+    public onColorChanged(callback: callbackFn): void {
+        this.observers.push(callback);
+    }
+
+    private notify() {
+        this.observers.forEach(v => v(HSVtoRGB(this._hue / 360, this._saturation / 100, this._value / 100)));
+    }
+
+    private handleMouseDownOnCanvas(e: MOUSEEVENT) {
         const pos = makePosition(this.canvas, e);
         const initX = pos.clientX;
         const initY = pos.clientY;
@@ -70,6 +110,7 @@ class ColorPickerImpl implements ColorPicker {
         this._saturation = initS;
         this._value = initV;
         this._onPaintCanvas();
+        this.notify();
 
         const onMouseMove = (e: MOUSEEVENT) => {
             const pos = makePosition(this.canvas, e);
@@ -81,6 +122,7 @@ class ColorPickerImpl implements ColorPicker {
             const deltaV = deltaY / this.paletteHeight * 100;
             this._value = Math.min(100, Math.max((initV - deltaV), 0));
             this._onPaintCanvas();
+            this.notify();
         };
         const onMouseUp = () => {
             document.removeEventListener(MOUSEUP, onMouseUp);
@@ -90,36 +132,6 @@ class ColorPickerImpl implements ColorPicker {
         document.addEventListener(MOUSEMOVE, onMouseMove);
     };
 
-    public detach(): void {
-        if (!this.element.parentElement) {
-            console.error('ColorPicker is not attached yet.');
-            return;
-        }
-        this.element.parentElement.removeChild(this.element);
-    }
-
-    public changeColor(rgb: number[]): void {
-    }
-
-    public getRGB(): number[] {
-        return [];
-    }
-
-    public onColorChanged(callback: (rgb: number[]) => void): void {
-    }
-
-    private initCanvas() {
-        const width = this.paletteWidth + this.knobRadius * 2;
-        const height = this.paletteHeight + this.knobRadius * 2;
-        this.canvas.style.width = width + 'px';
-        this.canvas.style.height = height + 'px';
-        this.canvas.width = width * this.quality;
-        this.canvas.height = height * this.quality;
-        this.paletteCanvas.width = this.paletteWidth * this.quality;
-        this.paletteCanvas.height = this.paletteHeight * this.quality;
-        this.updatePalette();
-    }
-
     get canvasWidth(): number {
         return this.paletteWidth * this.knobRadius * 2;
     }
@@ -128,13 +140,64 @@ class ColorPickerImpl implements ColorPicker {
         return this.paletteHeight * this.knobRadius * 2;
     }
 
+    private initCanvas(style: ColorPickerStyle) {
+        const canvas = document.createElement('canvas');
+        const context2d = canvas.getContext('2d');
+        if (context2d === null) {
+            throw Error('Failed to context initialized');
+        }
+        const paletteCanvas = document.createElement('canvas');
+        const paletteContext2d = paletteCanvas.getContext('2d')!;
+        if (paletteContext2d === null) {
+            throw Error('Failed to context initialized');
+        }
+        const width = style.paletteWidth + style.knobRadius * 2;
+        const height = style.paletteHeight + style.knobRadius * 2;
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+        canvas.width = width * this.quality;
+        canvas.height = height * this.quality;
+        paletteCanvas.width = style.paletteWidth * this.quality;
+        paletteCanvas.height = style.paletteHeight * this.quality;
+        return {canvas, context2d, paletteCanvas, paletteContext2d}
+    }
+
+    private initSlider(style: ColorPickerStyle) {
+        const sliderEl = document.createElement('div');
+        sliderEl.style.cssText = `
+            display: block;
+            position: relative;
+            width: ${style.paletteWidth}px;
+            height: ${style.sliderHeight}px;
+            margin: ${style.gap}px ${style.knobRadius}px 0 ${style.knobRadius}px;
+            background: linear-gradient(to right,hsl(0,100%,50%),hsl(60,100%,50%),hsl(120,100%,50%),hsl(180,100%,50%)
+            ,hsl(240,100%,50%),hsl(300,100%,50%),hsl(360,100%,50%));
+        `;
+        const sliderKnobEl = document.createElement('div');
+        sliderKnobEl.style.cssText = `
+            position: absolute;
+            left: 0px;
+            top: 0px;
+            width: ${style.knobRadius * 2}px;
+            height: ${style.knobRadius * 2}px;
+            border-radius: 50%;
+            background-color: hsl(0, 100%, 50%);
+            transform: translate(-50%, -1px);
+            border: 2px solid white;
+            cursor: pointer;
+        `;
+        sliderEl.append(sliderKnobEl);
+        return {sliderEl, sliderKnobEl};
+    }
+
+
     private updatePalette(hue: number = this._hue) {
         this.paletteContext2d.save();
         this.paletteContext2d.scale(this.quality, this.quality);
         for (let i = 0; i < this.paletteHeight + 1; i++) {
             const gradient = this.paletteContext2d.createLinearGradient(0, i, this.paletteWidth, i);
-            gradient.addColorStop(0, HSVtoRGB(hue / 360, 0, (this.paletteWidth - i) / this.paletteWidth));
-            gradient.addColorStop(1, HSVtoRGB(hue / 360, 1, (this.paletteWidth - i) / this.paletteWidth));
+            gradient.addColorStop(0, formatRGBtoCSS(HSVtoRGB(hue / 360, 0, (this.paletteWidth - i) / this.paletteWidth)));
+            gradient.addColorStop(1, formatRGBtoCSS(HSVtoRGB(hue / 360, 1, (this.paletteWidth - i) / this.paletteWidth)));
             this.paletteContext2d.fillStyle = gradient;
             this.paletteContext2d.fillRect(0, i, this.paletteWidth, 1);
         }
@@ -144,9 +207,9 @@ class ColorPickerImpl implements ColorPicker {
     private _drawPaletteCursor(s: number, v: number) {
         this.context2d.beginPath();
         this.context2d.arc(this._valueToPosX(s), this._valueToPosY(100 - v), this.knobRadius, 0, 2 * Math.PI);
-        this.context2d.fillStyle = HSVtoRGB(this._hue / 360, s/100, v/100);
+        this.context2d.fillStyle = formatRGBtoCSS(HSVtoRGB(this._hue / 360, s / 100, v / 100));
         this.context2d.strokeStyle = '#FFFFFF';
-        this.context2d.lineWidth = Math.max(this.knobRadius * 0.2, 5);
+        this.context2d.lineWidth = 4;
         this.context2d.stroke();
         this.context2d.fill();
     }
@@ -167,6 +230,50 @@ class ColorPickerImpl implements ColorPicker {
     private _valueToPosY(v: number) {
         return v * this.paletteHeight / 100 + this.knobRadius;
     }
+
+    private onHueChanged(hue: number = this._hue) {
+        this.sliderKnobEl.style.left = Math.round(hue / 360 * 500) + 'px';
+        this.sliderKnobEl.style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
+        this.updatePalette(Math.round(hue));
+        this.notify();
+    }
+
+    private handleMouseDownOnSliderKnob(e: MOUSEEVENT) {
+        const pos = makePosition(this.sliderKnobEl, e);
+        const initX = pos.clientX;
+        const initHue = this._hue;
+        this.handleChangeHueKnob(this.sliderKnobEl, initHue, initX);
+        e.stopPropagation();
+    }
+
+    private handleMouseDownOnSlider(e: MOUSEEVENT) {
+        const pos = makePosition(this.sliderKnobEl, e);
+        const initX = pos.clientX;
+        this._hue = pos.offsetX / this.paletteWidth * 360;
+        this.onHueChanged();
+        const initHue = this._hue;
+        this.handleChangeHueKnob(this.sliderKnobEl, initHue, initX);
+    }
+
+    private handleChangeHueKnob(target: HTMLElement, initHue: number, initX: number) {
+        const onMouseMove = (e: MouseEvent | TouchEvent) => {
+            const pos = makePosition(target, e);
+            const delta = (pos.clientX - initX) / 500 * 360;
+            this._hue = initHue + delta;
+            if (this._hue < 0) {
+                this._hue = 0;
+            } else if (this._hue > 360) {
+                this._hue = 360;
+            }
+            this.onHueChanged();
+        };
+        const onMouseUp = () => {
+            document.removeEventListener(MOUSEUP, onMouseUp);
+            document.removeEventListener(MOUSEMOVE, onMouseMove);
+        };
+        document.addEventListener(MOUSEUP, onMouseUp);
+        document.addEventListener(MOUSEMOVE, onMouseMove);
+    };
 }
 
 export function createColorPicker(style: ColorPickerStyle, quality = devicePixelRatio): ColorPicker {
