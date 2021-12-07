@@ -1,3 +1,4 @@
 # color-picker
-Under construction
 
+### Demo
+https://color-picker-t.vercel.app/
