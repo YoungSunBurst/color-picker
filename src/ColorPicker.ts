@@ -78,6 +78,8 @@ class ColorPickerImpl implements ColorPicker {
 
     public detach(): void {
         this.canvas.removeEventListener(MOUSEDOWN, this.handleMouseDownOnCanvas);
+        this.sliderEl.removeEventListener(MOUSEDOWN, this.handleMouseDownOnSlider);
+        this.sliderKnobEl.removeEventListener(MOUSEDOWN, this.handleMouseDownOnSliderKnob);
         if (!this.element.parentElement) {
             console.error('ColorPicker is not attached yet.');
             return;
@@ -201,6 +203,7 @@ class ColorPickerImpl implements ColorPicker {
             this.paletteContext2d.fillStyle = gradient;
             this.paletteContext2d.fillRect(0, i, this.paletteWidth, 1);
         }
+        this.paletteContext2d.restore();
         this._onPaintCanvas();
     }
 
